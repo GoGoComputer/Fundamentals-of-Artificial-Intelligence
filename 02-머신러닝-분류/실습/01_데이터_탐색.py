@@ -1,0 +1,120 @@
+"""2장 1~2절 실습: MNIST 데이터 탐색
+
+머신러닝의 첫 단계는 항상 '데이터 친구되기'입니다.
+모델을 만들기 전에 데이터를 충분히 들여다보세요.
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import fetch_openml
+
+
+# ============================================================
+# 1. 데이터 불러오기
+# ============================================================
+print("MNIST 다운로드 중... (처음엔 1~2분 걸려요)")
+
+mnist = fetch_openml('mnist_784', version=1, as_frame=False, parser='auto')
+X = mnist.data
+y = mnist.target
+
+print(f"\nX 모양: {X.shape}")    # (70000, 784)
+print(f"y 모양: {y.shape}")      # (70000,)
+print(f"X 자료형: {X.dtype}")
+print(f"y 자료형: {y.dtype}")    # 처음엔 string!
+
+
+# ============================================================
+# 2. 정답을 숫자로 변환
+# ============================================================
+y = y.astype(np.int64)
+print(f"\ny 변환 후: {y.dtype}")
+print(f"y의 처음 10개: {y[:10]}")
+print(f"y의 종류: {np.unique(y)}")    # [0 1 2 3 4 5 6 7 8 9]
+
+
+# ============================================================
+# 3. 한 샘플 자세히 보기
+# ============================================================
+sample_idx = 0
+sample_image = X[sample_idx]
+sample_label = y[sample_idx]
+
+print(f"\n[{sample_idx}번 샘플]")
+print(f"라벨: {sample_label}")
+print(f"이미지 모양: {sample_image.shape}")    # (784,) - 1차원
+print(f"픽셀 값 범위: {sample_image.min()} ~ {sample_image.max()}")
+
+
+# ============================================================
+# 4. 시각화
+# ============================================================
+# 1D를 다시 28x28로
+sample_image_2d = sample_image.reshape(28, 28)
+
+plt.figure(figsize=(4, 4))
+plt.imshow(sample_image_2d, cmap='gray')
+plt.title(f'라벨: {sample_label}', fontsize=14)
+plt.axis('off')
+plt.tight_layout()
+plt.savefig('mnist_sample.png', dpi=80)
+plt.show()
+print("\n첫 샘플 저장: mnist_sample.png")
+
+
+# ============================================================
+# 5. 여러 샘플 한 번에
+# ============================================================
+fig, axes = plt.subplots(2, 5, figsize=(12, 5))
+
+for i, ax in enumerate(axes.flat):
+    img = X[i].reshape(28, 28)
+    ax.imshow(img, cmap='gray')
+    ax.set_title(f'라벨: {y[i]}')
+    ax.axis('off')
+
+plt.suptitle('MNIST 첫 10장', fontsize=14)
+plt.tight_layout()
+plt.savefig('mnist_samples.png', dpi=80)
+plt.show()
+print("10장 저장: mnist_samples.png")
+
+
+# ============================================================
+# 6. 클래스 분포 보기
+# ============================================================
+unique, counts = np.unique(y, return_counts=True)
+
+plt.figure(figsize=(10, 5))
+plt.bar(unique, counts, color='steelblue', edgecolor='black')
+plt.xlabel('숫자')
+plt.ylabel('개수')
+plt.title('MNIST 클래스 분포')
+plt.xticks(unique)
+for i, count in enumerate(counts):
+    plt.text(unique[i], count + 100, str(count), ha='center', fontsize=10)
+plt.tight_layout()
+plt.savefig('mnist_class_dist.png', dpi=80)
+plt.show()
+print("\n클래스 분포 저장: mnist_class_dist.png")
+print(f"가장 많은 숫자: {unique[counts.argmax()]} ({counts.max():,}개)")
+print(f"가장 적은 숫자: {unique[counts.argmin()]} ({counts.min():,}개)")
+
+
+# ============================================================
+# 7. 픽셀 값 분포
+# ============================================================
+plt.figure(figsize=(10, 5))
+plt.hist(X.flatten(), bins=50, color='steelblue', edgecolor='black')
+plt.xlabel('픽셀 값 (0=검정, 255=흰색)')
+plt.ylabel('빈도')
+plt.title('전체 픽셀 값 분포')
+plt.yscale('log')   # 로그 스케일 (검은 픽셀이 너무 많아서)
+plt.tight_layout()
+plt.savefig('mnist_pixel_dist.png', dpi=80)
+plt.show()
+print("\n픽셀 분포 저장: mnist_pixel_dist.png")
+print("→ 대부분 0(검정)이고, 글씨 부분만 밝은 값")
+
+
+print("\n탐색 끝! 이제 데이터를 손에 잡힐 듯이 이해하셨을 겁니다.")

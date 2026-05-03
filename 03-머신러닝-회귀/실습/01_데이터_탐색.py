@@ -1,0 +1,155 @@
+"""3장 1~2절 실습: Boston Housing 데이터 탐색
+
+회귀의 첫 번째 일은 'y의 분포를 본다'입니다.
+y가 어떻게 생겼는지 모르고 모델을 짜면 함정에 빠져요.
+"""
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+# ============================================================
+# 1. 데이터 불러오기
+# ============================================================
+print("Boston Housing 다운로드 중...")
+
+data_url = "http://lib.stat.cmu.edu/datasets/boston"
+raw_df = pd.read_csv(data_url, sep=r"\s+", skiprows=22, header=None)
+data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
+target = raw_df.values[1::2, 2]
+
+feature_names = ['CRIM', 'ZN', 'INDUS', 'CHAS', 'NOX', 'RM', 'AGE',
+                 'DIS', 'RAD', 'TAX', 'PTRATIO', 'B', 'LSTAT']
+
+X = pd.DataFrame(data, columns=feature_names)
+y = pd.Series(target, name='MEDV')
+
+print(f"X 모양: {X.shape}")
+print(f"y 모양: {y.shape}")
+
+
+# ============================================================
+# 2. 첫 5행 보기
+# ============================================================
+print("\n[X 첫 5행]")
+print(X.head())
+
+print("\n[y 첫 5개 값]")
+print(y.head())
+
+
+# ============================================================
+# 3. 통계 요약
+# ============================================================
+print("\n[기술 통계]")
+print(X.describe())
+
+print(f"\n[y 통계]")
+print(y.describe())
+
+
+# ============================================================
+# 4. y 분포 시각화
+# ============================================================
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# 히스토그램
+axes[0].hist(y, bins=30, color='steelblue', edgecolor='black')
+axes[0].set_xlabel('집값 ($1000)')
+axes[0].set_ylabel('동네 수')
+axes[0].set_title('Boston 집값 분포')
+axes[0].axvline(y.mean(), color='red', linestyle='--', label=f'평균 {y.mean():.1f}')
+axes[0].axvline(y.median(), color='green', linestyle='--', label=f'중앙값 {y.median():.1f}')
+axes[0].legend()
+
+# 박스플롯
+axes[1].boxplot(y, vert=True, patch_artist=True,
+                boxprops=dict(facecolor='steelblue'))
+axes[1].set_ylabel('집값')
+axes[1].set_title('이상치 확인 (박스플롯)')
+
+plt.tight_layout()
+plt.savefig('boston_y_dist.png', dpi=80)
+plt.show()
+
+# 50에서 봉우리 → 데이터 절단(censored) 가능성
+top_value_count = (y == 50).sum()
+print(f"\ny=50인 샘플: {top_value_count}개 ({top_value_count/len(y):.1%})")
+print("→ 50은 '50 이상'을 의미할 수 있어요 (절단된 데이터)")
+
+
+# ============================================================
+# 5. 상관관계 히트맵
+# ============================================================
+data_full = X.copy()
+data_full['MEDV'] = y
+
+corr = data_full.corr()
+
+plt.figure(figsize=(12, 10))
+sns.heatmap(
+    corr, annot=True, fmt='.2f', cmap='coolwarm',
+    center=0, square=True, vmin=-1, vmax=1,
+)
+plt.title('Boston 변수 간 상관관계')
+plt.tight_layout()
+plt.savefig('boston_corr.png', dpi=80)
+plt.show()
+
+# y와 가장 강한 상관 변수
+y_corr = corr['MEDV'].drop('MEDV').sort_values(key=abs, ascending=False)
+print("\n[y와의 상관계수 (절대값 기준)]")
+print(y_corr)
+
+
+# ============================================================
+# 6. 상위 2개 변수와의 관계
+# ============================================================
+top_features = y_corr.abs().sort_values(ascending=False).head(2).index.tolist()
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+for ax, feat in zip(axes, top_features):
+    ax.scatter(X[feat], y, alpha=0.5, color='steelblue')
+    ax.set_xlabel(feat)
+    ax.set_ylabel('집값')
+    ax.set_title(f'{feat} vs 집값 (상관 {y_corr[feat]:+.3f})')
+    ax.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('boston_top_features.png', dpi=80)
+plt.show()
+
+
+# ============================================================
+# 7. 변수별 단위 차이 보기
+# ============================================================
+plt.figure(figsize=(14, 6))
+X.boxplot()
+plt.xticks(rotation=45)
+plt.title('변수별 값 범위 (정규화 필요한지 확인)')
+plt.tight_layout()
+plt.savefig('boston_scales.png', dpi=80)
+plt.show()
+print("\n→ 단위가 천차만별이므로 정규화 필수!")
+
+
+# ============================================================
+# 8. 결측값 / 중복 확인
+# ============================================================
+print(f"\n결측값: {X.isnull().sum().sum()}개")
+print(f"중복 행: {X.duplicated().sum()}개")
+print(f"y의 결측: {y.isnull().sum()}개")
+
+
+# ============================================================
+# 9. 데이터 저장 (다음 실습에서 사용)
+# ============================================================
+X.to_csv('boston_X.csv', index=False)
+y.to_csv('boston_y.csv', index=False)
+print("\n저장: boston_X.csv, boston_y.csv")
+
+
+print("\n탐색 끝! 데이터를 손에 잡힐 듯이 알게 되셨을 겁니다.")

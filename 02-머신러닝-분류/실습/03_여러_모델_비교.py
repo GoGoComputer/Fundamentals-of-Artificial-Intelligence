@@ -1,0 +1,155 @@
+"""2장 6절 실습: 4가지 분류 모델 비교
+
+같은 데이터로 4가지 모델을 학습시켜 결과를 비교합니다.
+회사에서 새 문제를 만났을 때 항상 첫 단계로 하는 일이에요.
+"""
+
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.datasets import fetch_openml
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+
+# ============================================================
+# 데이터 준비
+# ============================================================
+print("데이터 준비 중...")
+mnist = fetch_openml('mnist_784', version=1, as_frame=False, parser='auto')
+X = mnist.data[:2000] / 255.0
+y = mnist.target[:2000].astype(np.int64)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+print(f"학습: {X_train.shape}, 평가: {X_test.shape}")
+
+
+# ============================================================
+# 비교할 모델들
+# ============================================================
+models = {
+    "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42, n_jobs=-1),
+    "KNN (k=5)":           KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+    "SVM (RBF)":           SVC(kernel='rbf', random_state=42),
+    "Random Forest":       RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+}
+
+
+# ============================================================
+# 학습 + 평가 + 시간 측정
+# ============================================================
+results = []
+
+for name, model in models.items():
+    print(f"\n[{name}]")
+
+    # 학습
+    start = time.time()
+    model.fit(X_train, y_train)
+    train_time = time.time() - start
+    print(f"  학습 시간: {train_time:.2f}초")
+
+    # 예측
+    start = time.time()
+    y_pred = model.predict(X_test)
+    pred_time = time.time() - start
+    print(f"  예측 시간: {pred_time:.4f}초")
+
+    # 정확도
+    train_acc = accuracy_score(y_train, model.predict(X_train))
+    test_acc = accuracy_score(y_test, y_pred)
+    print(f"  훈련 정확도: {train_acc:.4f}")
+    print(f"  평가 정확도: {test_acc:.4f}")
+    print(f"  훈련-평가 차이: {train_acc - test_acc:.4f} (작을수록 좋음)")
+
+    results.append({
+        "name": name,
+        "train_acc": train_acc,
+        "test_acc": test_acc,
+        "train_time": train_time,
+        "pred_time": pred_time,
+    })
+
+
+# ============================================================
+# 결과 표
+# ============================================================
+print("\n" + "=" * 70)
+print(f"{'모델':<22} {'평가 정확도':>12} {'학습(초)':>10} {'예측(초)':>10}")
+print("-" * 70)
+
+# 평가 정확도 순으로 정렬
+results.sort(key=lambda r: r["test_acc"], reverse=True)
+for r in results:
+    print(f"{r['name']:<22} {r['test_acc']:>12.4f} "
+          f"{r['train_time']:>10.2f} {r['pred_time']:>10.4f}")
+print("=" * 70)
+
+
+# ============================================================
+# 시각화
+# ============================================================
+names = [r["name"] for r in results]
+test_accs = [r["test_acc"] for r in results]
+train_accs = [r["train_acc"] for r in results]
+train_times = [r["train_time"] for r in results]
+
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+# 정확도 비교
+x_pos = np.arange(len(names))
+width = 0.35
+axes[0].barh(x_pos - width/2, train_accs, width, label='훈련', color='lightblue')
+axes[0].barh(x_pos + width/2, test_accs, width, label='평가', color='steelblue')
+axes[0].set_yticks(x_pos)
+axes[0].set_yticklabels(names)
+axes[0].set_xlim(0.7, 1.0)
+axes[0].set_xlabel('정확도')
+axes[0].set_title('훈련 vs 평가 정확도')
+axes[0].legend()
+axes[0].grid(axis='x', alpha=0.3)
+
+# 학습 시간
+axes[1].barh(names, train_times, color='salmon')
+axes[1].set_xlabel('학습 시간 (초)')
+axes[1].set_title('학습 시간 비교')
+axes[1].grid(axis='x', alpha=0.3)
+for i, v in enumerate(train_times):
+    axes[1].text(v + 0.05, i, f'{v:.2f}s', va='center')
+
+# 평가 정확도만
+axes[2].barh(names, test_accs, color='mediumseagreen')
+axes[2].set_xlim(0.7, 1.0)
+axes[2].set_xlabel('평가 정확도')
+axes[2].set_title('평가 정확도 (최종 점수)')
+axes[2].grid(axis='x', alpha=0.3)
+for i, v in enumerate(test_accs):
+    axes[2].text(v + 0.005, i, f'{v:.4f}', va='center')
+
+plt.tight_layout()
+plt.savefig('model_comparison.png', dpi=80)
+plt.show()
+print("\n그래프 저장: model_comparison.png")
+
+
+# ============================================================
+# 결론
+# ============================================================
+best = results[0]
+print("\n" + "=" * 60)
+print(f"승자: {best['name']} (정확도 {best['test_acc']:.4f})")
+print("=" * 60)
+print("""
+요약:
+- 정확도가 가장 높은 게 무조건 좋은 건 아닙니다
+- 학습/예측 시간, 메모리 사용량도 같이 봐야 해요
+- 실제 서비스에서는 응답 시간이 정확도만큼 중요해요
+- 작은 차이는 통계적으로 의미 없을 수도 있으니 cv를 써서 확인하세요
+""")
