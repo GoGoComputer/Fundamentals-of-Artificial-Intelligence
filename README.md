@@ -2,6 +2,10 @@
 
 AI fundamentals study repository covering machine learning, deep learning, neural networks, and hands-on Python, PyTorch, and scikit-learn exercises.
 
+## 검색 키워드 (Search Keywords)
+
+AI 기초, 인공지능 기초, 머신러닝 입문, 딥러닝 입문, 파이썬 AI, Python AI tutorial, machine learning tutorial, deep learning tutorial, PyTorch tutorial, scikit-learn tutorial, neural networks for beginners
+
 > **누구를 위한 자료인가요?**
 > - "AI라는 단어만 들어도 머리가 아파요" 하시는 분
 > - "파이썬은 한 번도 안 짜봤어요" 하시는 분
@@ -87,6 +91,25 @@ AI fundamentals study repository covering machine learning, deep learning, neura
 자, 그럼 시작해 볼까요?
 
 ➡️ **[0장. 시작하기 전에](00-시작하기-전에/)** 부터 가 보시죠.
+
+---
+
+## 팀과 후원
+
+- **Lead:** 강희성 (Kang Heesung) · [mobidicmcn@gmail.com](mailto:mobidicmcn@gmail.com) · [1600-7542](tel:16007542)
+- **Maintainer/Developer:** 박성모 (Park Sungmo)
+
+### 후원 및 지원
+
+- 본 저장소는 강희성 대표의 지원으로 제작되었습니다.
+- 지원 항목: 프로젝트 인프라 구축, API 운영비, 서비스 고도화 및 운영 전반 비용
+- 스폰서/소속: 주식회사 모비딕컴퍼니
+
+### 공식 링크
+
+- https://github.com/GoGoComputer/Fundamentals-of-Artificial-Intelligence
+- https://aifighter.io
+- https://mobidicsaju.com
 
 ---
 
