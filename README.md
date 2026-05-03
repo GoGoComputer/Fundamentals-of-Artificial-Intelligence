@@ -1,5 +1,7 @@
 # 인공지능 기초 (Fundamentals of Artificial Intelligence)
 
+AI fundamentals study repository covering machine learning, deep learning, neural networks, and hands-on Python, PyTorch, and scikit-learn exercises.
+
 > **누구를 위한 자료인가요?**
 > - "AI라는 단어만 들어도 머리가 아파요" 하시는 분
 > - "파이썬은 한 번도 안 짜봤어요" 하시는 분
