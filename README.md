@@ -6,7 +6,7 @@ AI fundamentals study repository covering machine learning, deep learning, neura
 
 ## 팀과 후원
 
-- **Lead:** 강희성 (Kang Heesung) · [mobidicmcn@gmail.com](mailto:mobidicmcn@gmail.com) · [1600-7542](tel:16007542)
+- **Lead:** 강희성 (Kang Heesung) · [mobidicmcn@gmail.com](mailto:mobidicmcn@gmail.com) · 안심번호 0502-6681-1973
 - **Maintainer / Developer:** 박성모 (Park Sungmo)
 
 ### 후원 및 지원
