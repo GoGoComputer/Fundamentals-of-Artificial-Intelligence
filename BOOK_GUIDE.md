@@ -30,10 +30,22 @@ mdbook serve
 ### 방법 3: PDF 생성
 
 ```bash
-# 1. 먼저 wkhtmltopdf 또는 Chrome 설치 필요
-# 2. print.html을 PDF로 변환
-# 또는 mdbook 플러그인 사용
+# Chrome / Chromium / Brave가 설치되어 있으면 바로 실행
+python scripts/export_pdf.py
+
+# 출력 경로 지정
+python scripts/export_pdf.py -o my-book.pdf
+
+# 책 빌드 + PDF 한 번에
+python scripts/export_pdf.py --build
+
+# Chrome이 없을 때 WeasyPrint 사용
+pip install weasyprint
+python scripts/export_pdf.py --weasyprint
 ```
+
+> Chrome이 없고 WeasyPrint도 없다면, 브라우저에서 `book/print.html`을 열고  
+> **파일 → 인쇄 → PDF로 저장** 으로 직접 내보낼 수 있습니다.
 
 ## 📁 파일 구조
 
