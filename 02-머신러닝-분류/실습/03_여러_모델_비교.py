@@ -17,9 +17,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
 
-# ============================================================
-# 데이터 준비
-# ============================================================
+# 같은 데이터셋/분할을 고정해 두고 모델만 바꿔야 공정한 성능 비교가 가능합니다.
 print("데이터 준비 중...")
 mnist = fetch_openml('mnist_784', version=1, as_frame=False, parser='auto')
 X = mnist.data[:2000] / 255.0
@@ -31,9 +29,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"학습: {X_train.shape}, 평가: {X_test.shape}")
 
 
-# ============================================================
-# 비교할 모델들
-# ============================================================
+# 모델군은 선형/거리기반/커널기반/앙상블을 골고루 넣어 비교 관점을 넓혔습니다.
 models = {
     "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42, n_jobs=-1),
     "KNN (k=5)":           KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
@@ -42,27 +38,25 @@ models = {
 }
 
 
-# ============================================================
-# 학습 + 평가 + 시간 측정
-# ============================================================
+# 정확도뿐 아니라 학습 시간/예측 시간도 같이 기록해 실무 관점의 선택 기준을 만듭니다.
 results = []
 
 for name, model in models.items():
     print(f"\n[{name}]")
 
-    # 학습
+    # fit 시간은 모델 초기 학습 비용을 나타냅니다.
     start = time.time()
     model.fit(X_train, y_train)
     train_time = time.time() - start
     print(f"  학습 시간: {train_time:.2f}초")
 
-    # 예측
+    # predict 시간은 서비스 응답 속도와 직접 연결되는 지표입니다.
     start = time.time()
     y_pred = model.predict(X_test)
     pred_time = time.time() - start
     print(f"  예측 시간: {pred_time:.4f}초")
 
-    # 정확도
+    # train-test 정확도 차이는 과적합 여부를 빠르게 확인하는 신호입니다.
     train_acc = accuracy_score(y_train, model.predict(X_train))
     test_acc = accuracy_score(y_test, y_pred)
     print(f"  훈련 정확도: {train_acc:.4f}")
@@ -78,9 +72,7 @@ for name, model in models.items():
     })
 
 
-# ============================================================
-# 결과 표
-# ============================================================
+# 표를 정확도 기준으로 정렬하면 어떤 모델이 현재 데이터에서 우세한지 즉시 확인할 수 있습니다.
 print("\n" + "=" * 70)
 print(f"{'모델':<22} {'평가 정확도':>12} {'학습(초)':>10} {'예측(초)':>10}")
 print("-" * 70)
@@ -93,9 +85,7 @@ for r in results:
 print("=" * 70)
 
 
-# ============================================================
-# 시각화
-# ============================================================
+# 시각화 3종으로 정확도와 시간 트레이드오프를 한 화면에서 비교합니다.
 names = [r["name"] for r in results]
 test_accs = [r["test_acc"] for r in results]
 train_accs = [r["train_acc"] for r in results]
@@ -139,9 +129,7 @@ plt.show()
 print("\n그래프 저장: model_comparison.png")
 
 
-# ============================================================
-# 결론
-# ============================================================
+# 자동 선택된 베스트 모델을 마지막에 요약해 다음 단계(튜닝)로 바로 연결합니다.
 best = results[0]
 print("\n" + "=" * 60)
 print(f"승자: {best['name']} (정확도 {best['test_acc']:.4f})")

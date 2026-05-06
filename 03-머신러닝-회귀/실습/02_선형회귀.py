@@ -18,9 +18,7 @@ from sklearn.metrics import (
 )
 
 
-# ============================================================
-# 1. 데이터 준비
-# ============================================================
+# 1단계에서는 회귀 입력 X와 연속형 타깃 y를 준비해 동일 조건 분할까지 완료합니다.
 data_url = "http://lib.stat.cmu.edu/datasets/boston"
 raw_df = pd.read_csv(data_url, sep=r"\s+", skiprows=22, header=None)
 data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
@@ -35,9 +33,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# ============================================================
-# 2. Pipeline (정규화 + 모델)
-# ============================================================
+# 선형 회귀는 스케일 민감도가 있으므로 StandardScaler와 함께 Pipeline으로 묶어 학습합니다.
 pipe = Pipeline([
     ('scaler', StandardScaler()),
     ('lr', LinearRegression()),
@@ -46,16 +42,12 @@ pipe = Pipeline([
 pipe.fit(X_train, y_train)
 
 
-# ============================================================
-# 3. 예측
-# ============================================================
+# train/test 예측을 둘 다 계산해 과적합 신호와 일반화 성능을 함께 봅니다.
 y_train_pred = pipe.predict(X_train)
 y_test_pred = pipe.predict(X_test)
 
 
-# ============================================================
-# 4. 평가 (4가지 지표 다)
-# ============================================================
+# 회귀 지표는 하나만 보면 왜곡될 수 있으므로 MSE/RMSE/MAE/R²를 함께 확인합니다.
 def evaluate(y_true, y_pred, name=""):
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
@@ -76,7 +68,7 @@ train_metrics = evaluate(y_train, y_train_pred, "Train")
 test_metrics = evaluate(y_test, y_test_pred, "Test")
 
 
-# 과적합 체크
+# train-test R² 차이로 과적합 여부를 빠르게 판단합니다.
 gap = train_metrics['r2'] - test_metrics['r2']
 print(f"R² 차이 (Train - Test): {gap:.4f}")
 if gap > 0.1:
@@ -85,9 +77,7 @@ elif gap < 0.05:
     print("→ 과적합 없음 (좋음)")
 
 
-# ============================================================
-# 5. 가중치 분석
-# ============================================================
+# 회귀 계수는 어떤 특성이 예측값을 올리거나 내리는지 해석할 때 핵심 단서가 됩니다.
 weights = pd.DataFrame({
     'feature': X.columns,
     'weight': pipe.named_steps['lr'].coef_,
@@ -113,9 +103,7 @@ plt.show()
 print("저장: linear_weights.png")
 
 
-# ============================================================
-# 6. 예측 vs 실제
-# ============================================================
+# 예측 vs 실제 산점도에서 대각선(y=x)에 가까울수록 모델 예측이 잘 맞는다는 뜻입니다.
 plt.figure(figsize=(8, 8))
 plt.scatter(y_test, y_test_pred, alpha=0.5, color='steelblue')
 plt.plot([y_test.min(), y_test.max()],
@@ -132,9 +120,7 @@ plt.show()
 print("저장: linear_pred_vs_actual.png")
 
 
-# ============================================================
-# 7. 잔차 플롯 (모델 진단의 핵심!)
-# ============================================================
+# 잔차 플롯은 모델이 놓치는 패턴(비선형성/이분산)을 찾아내는 가장 중요한 진단 도구입니다.
 residuals = y_test - y_test_pred
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))

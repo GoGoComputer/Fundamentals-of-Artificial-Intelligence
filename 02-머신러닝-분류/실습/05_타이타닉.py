@@ -26,9 +26,7 @@ from sklearn.metrics import (
 from scipy.stats import randint, uniform
 
 
-# ============================================================
-# 1. 데이터 불러오기
-# ============================================================
+# 1단계에서는 표 형태(tabular) 분류 문제의 전형적인 데이터 구조를 확인합니다.
 # seaborn에 내장된 타이타닉 데이터
 df = sns.load_dataset('titanic')
 
@@ -40,17 +38,13 @@ print(f"\n각 열 정보:")
 print(df.info())
 
 
-# ============================================================
-# 2. 데이터 탐색
-# ============================================================
+# 결측값과 타깃 비율을 먼저 확인해야 전처리 전략과 평가 해석이 안정적입니다.
 print(f"\n생존자 비율: {df['survived'].mean():.2%}")
 print(f"\n결측값:")
 print(df.isnull().sum().sort_values(ascending=False).head(10))
 
 
-# ============================================================
-# 3. 전처리
-# ============================================================
+# 표 데이터 전처리는 "특성 선택 -> 결측치 처리 -> 범주형 인코딩" 순서를 지키면 실수가 줄어듭니다.
 # 사용할 특성 선택
 features = ['pclass', 'sex', 'age', 'sibsp', 'parch', 'fare', 'embarked']
 X = df[features].copy()
@@ -68,9 +62,7 @@ print(f"\n전처리 후 특성: {X.columns.tolist()}")
 print(f"X 모양: {X.shape}")
 
 
-# ============================================================
-# 4. 분할
-# ============================================================
+# stratify 분할로 생존/사망 비율을 train/test에 유사하게 유지합니다.
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
@@ -78,11 +70,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"\n학습: {X_train.shape}, 평가: {X_test.shape}")
 
 
-# ============================================================
-# 5. 두 모델 비교
-# ============================================================
+# 선형 기반(Logistic)과 비선형 앙상블(Random Forest)을 같이 비교해 관점을 넓힙니다.
 
-# Pipeline으로 정규화 + 모델 묶기
+# Pipeline으로 전처리와 모델을 묶으면 추론 시 같은 전처리가 자동 재현됩니다.
 models = {
     "Logistic Regression": Pipeline([
         ('scaler', StandardScaler()),
@@ -111,18 +101,14 @@ for name, model in models.items():
     results[name] = {'acc': acc, 'auc': auc, 'model': model, 'y_pred': y_pred}
 
 
-# ============================================================
-# 6. 베스트 모델 자세히
-# ============================================================
+# AUC 기준 최고 모델을 뽑아 상세 리포트를 출력합니다.
 best_name = max(results, key=lambda k: results[k]['auc'])
 best = results[best_name]
 print(f"\n[베스트: {best_name}]")
 print(classification_report(y_test, best['y_pred']))
 
 
-# ============================================================
-# 7. 특성 중요도 (Random Forest인 경우)
-# ============================================================
+# 트리 모델이 승자일 때만 중요도 그래프를 그려 해석 가능 정보를 추가합니다.
 if best_name == "Random Forest":
     rf = best['model'].named_steps['clf']
     importances = pd.Series(rf.feature_importances_, index=X.columns)
@@ -139,9 +125,7 @@ if best_name == "Random Forest":
     print("\n→ 어떤 특성이 생존에 영향이 컸는지 보세요")
 
 
-# ============================================================
-# 8. 혼동 행렬
-# ============================================================
+# 혼동 행렬로 생존/사망 중 어느 쪽 오분류가 많은지 확인합니다.
 cm = confusion_matrix(y_test, best['y_pred'])
 plt.figure(figsize=(6, 5))
 sns.heatmap(
@@ -155,9 +139,7 @@ plt.savefig('titanic_cm.png', dpi=80)
 plt.show()
 
 
-# ============================================================
-# 9. 새 사람 한 명 예측 (재미)
-# ============================================================
+# 마지막 예제는 새 샘플 1건을 넣어 API 없이도 모델 사용 흐름을 체험하는 단계입니다.
 print("\n[9] 새 사람 예측해 보기")
 print("-" * 40)
 

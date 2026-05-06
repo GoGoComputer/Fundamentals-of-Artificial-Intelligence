@@ -1,7 +1,7 @@
 """5장 6절 실습: Early Stopping + Dropout + Weight Decay 종합
 
-세 가지 무기를 다 적용한 표준 패턴.
-회사에서 그대로 가져다 쓰셔도 되는 코드입니다.
+회귀 신경망에서 과적합을 줄이는 3가지 핵심 기법을 한 파일에 모은 실습입니다.
+각 기법이 어디서 적용되는지 주석 위치를 따라가며 읽으면 구조가 빠르게 잡힙니다.
 """
 
 import numpy as np
@@ -16,17 +16,13 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import matplotlib.pyplot as plt
 
 
-# ============================================================
-# 시드
-# ============================================================
+# 시드를 고정해 실험 재현성을 확보합니다.
 SEED = 42
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 
-# ============================================================
-# 1. 데이터: train/val/test 3-way split
-# ============================================================
+# train/val/test 3분할은 Early Stopping을 쓰기 위한 기본 전제입니다.
 data_url = "http://lib.stat.cmu.edu/datasets/boston"
 raw_df = pd.read_csv(data_url, sep=r"\s+", skiprows=22, header=None)
 data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
@@ -43,12 +39,13 @@ X_train, X_val, y_train, y_val = train_test_split(
 print(f"Train: {X_train.shape[0]}, Val: {X_val.shape[0]}, Test: {X_test.shape[0]}")
 
 
-# 정규화
+# 입력 X와 타깃 y 모두 스케일을 맞추면 회귀 신경망 학습이 더 안정적입니다.
 scaler_X = StandardScaler().fit(X_train)
 scaler_y = StandardScaler().fit(y_train.reshape(-1, 1))
 
 
 def to_tensor(X, y):
+    # 넘파이 배열을 표준화한 뒤 float32 텐서로 변환해 PyTorch에서 바로 쓰게 만듭니다.
     X_s = scaler_X.transform(X)
     y_s = scaler_y.transform(y.reshape(-1, 1)).flatten()
     return (
@@ -66,9 +63,7 @@ train_loader = DataLoader(TensorDataset(X_train_t, y_train_t), batch_size=32, sh
 val_loader = DataLoader(TensorDataset(X_val_t, y_val_t), batch_size=32, shuffle=False)
 
 
-# ============================================================
-# 2. 모델: Dropout + BatchNorm
-# ============================================================
+# 모델 내부에 Dropout과 BatchNorm을 넣어 일반화 성능을 높이는 구조를 만듭니다.
 class RobustRegressor(nn.Module):
     def __init__(self, input_dim=13, hidden=64, dropout_p=0.3):
         super().__init__()
@@ -83,6 +78,7 @@ class RobustRegressor(nn.Module):
         self.fc3 = nn.Linear(hidden // 2, 1)
 
     def forward(self, x):
+        # 각 블록에서 Linear -> BatchNorm -> ReLU -> Dropout 순서로 변환합니다.
         x = self.fc1(x)
         x = self.bn1(x)
         x = torch.relu(x)
@@ -100,9 +96,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = RobustRegressor(input_dim=X_train.shape[1]).to(device)
 
 
-# ============================================================
-# 3. Early Stopping 클래스
-# ============================================================
+# EarlyStopping 클래스는 검증 손실이 개선되지 않을 때 학습을 자동으로 멈추게 합니다.
 class EarlyStopping:
     def __init__(self, patience=20, min_delta=0.0, save_path='best_model.pth'):
         self.patience = patience
@@ -114,6 +108,7 @@ class EarlyStopping:
         self.best_epoch = 0
 
     def __call__(self, val_loss, model, epoch):
+        # val_loss가 min_delta 이상 개선되면 베스트 갱신 및 모델 체크포인트를 저장합니다.
         if val_loss < self.best_score - self.min_delta:
             self.best_score = val_loss
             self.counter = 0
@@ -131,9 +126,7 @@ class EarlyStopping:
         return model
 
 
-# ============================================================
-# 4. 학습 (AdamW + Weight Decay + Early Stopping)
-# ============================================================
+# 학습 설정에서 AdamW의 weight_decay가 곧 L2 정규화 역할을 수행합니다.
 loss_fn = nn.MSELoss()
 optimizer = optim.AdamW(
     model.parameters(),
@@ -147,11 +140,11 @@ n_epochs = 500
 train_losses = []
 val_losses = []
 
-print("\n학습 시작 (Early Stopping이 알아서 멈춤)")
+print("\n학습 시작 (Early Stopping이 검증 손실을 기준으로 자동 중단)")
 print("-" * 60)
 
 for epoch in range(n_epochs):
-    # === 학습 ===
+    # 학습 단계에서는 미니배치마다 forward/backward/step을 반복합니다.
     model.train()
     train_loss = 0
     for X, y in train_loader:
@@ -164,7 +157,7 @@ for epoch in range(n_epochs):
         train_loss += loss.item()
     train_loss /= len(train_loader)
 
-    # === 검증 ===
+    # 검증 단계는 torch.no_grad로 그래디언트를 끄고 손실만 측정합니다.
     model.eval()
     val_loss = 0
     with torch.no_grad():
@@ -176,7 +169,7 @@ for epoch in range(n_epochs):
     train_losses.append(train_loss)
     val_losses.append(val_loss)
 
-    # Early Stopping 체크
+    # 검증 손실을 EarlyStopping 객체에 전달해 베스트 갱신/중단 여부를 판단합니다.
     improved = early_stopping(val_loss, model, epoch)
 
     if (epoch + 1) % 20 == 0 or improved:
@@ -189,13 +182,11 @@ for epoch in range(n_epochs):
         break
 
 
-# 베스트 모델 불러오기
+# 학습 종료 후에는 마지막 모델이 아니라 베스트 epoch 모델을 다시 로드합니다.
 model = early_stopping.load_best(model)
 
 
-# ============================================================
-# 5. Test 평가
-# ============================================================
+# 테스트 단계에서는 스케일된 예측값을 원래 단위로 되돌린 뒤 RMSE/MAE/R²를 계산합니다.
 model.eval()
 with torch.no_grad():
     pred_t = model(X_test_t.to(device)).cpu().numpy()
@@ -212,9 +203,7 @@ print(f"  MAE:  {mae:.4f}")
 print(f"  R²:   {r2:.4f}")
 
 
-# ============================================================
-# 6. 시각화
-# ============================================================
+# 시각화 4종(학습곡선/로그곡선/예측vs실제/잔차)으로 학습 품질을 다각도로 진단합니다.
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
 # 학습 곡선 (정상 스케일)
@@ -265,9 +254,7 @@ print("\n저장: three_weapons.png")
 print("저장: best_model.pth")
 
 
-# ============================================================
-# 7. 정리
-# ============================================================
+# 마지막 요약 출력은 실험 보고서로 옮기기 좋은 핵심 수치를 한곳에 모아줍니다.
 print(f"""
 {'=' * 60}
 요약:

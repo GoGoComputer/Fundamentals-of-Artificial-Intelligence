@@ -1,6 +1,7 @@
 """3장 5절 실습: 정규화 (Lasso, Ridge, ElasticNet) 비교
 
-같은 데이터로 4가지 회귀를 학습시켜 가중치와 성능을 비교합니다.
+같은 데이터에서 선형 계열 4개 모델을 학습시키고,
+성능 지표와 가중치 모양이 어떻게 달라지는지 한 번에 비교합니다.
 """
 
 import numpy as np
@@ -17,9 +18,7 @@ from sklearn.linear_model import (
 from sklearn.metrics import mean_squared_error, r2_score
 
 
-# ============================================================
-# 데이터 준비
-# ============================================================
+# 데이터 준비에서는 학습과 평가를 같은 조건으로 고정해 모델 차이만 보이게 만듭니다.
 data_url = "http://lib.stat.cmu.edu/datasets/boston"
 raw_df = pd.read_csv(data_url, sep=r"\s+", skiprows=22, header=None)
 data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
@@ -34,19 +33,19 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# ============================================================
-# 4가지 모델 학습
-# ============================================================
+# 같은 입력에 모델만 바꿔 학습하면 "모델 선택"의 차이를 공정하게 비교할 수 있습니다.
 models = {
     "Linear":     LinearRegression(),
     "Ridge":      Ridge(alpha=1.0),
-    "Lasso":      Lasso(alpha=0.5),    # alpha 좀 크게 해서 효과 보기
+    # Lasso는 일부 계수를 0으로 만들어 특성 선택 효과가 보이므로 alpha를 조금 크게 둡니다.
+    "Lasso":      Lasso(alpha=0.5),
     "ElasticNet": ElasticNet(alpha=0.5, l1_ratio=0.5),
 }
 
 results = {}
 
 for name, model in models.items():
+    # 선형 계열은 입력 스케일에 민감하므로 StandardScaler를 같은 방식으로 적용합니다.
     pipe = Pipeline([
         ('scaler', StandardScaler()),
         ('model', model),
@@ -57,6 +56,7 @@ for name, model in models.items():
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     r2 = r2_score(y_test, y_pred)
 
+    # 정규화 비교의 핵심은 계수(coef_)가 어떻게 줄거나 0이 되는지 보는 것입니다.
     weights = pipe.named_steps['model'].coef_
     n_zero = (np.abs(weights) < 1e-10).sum()
 
@@ -73,9 +73,7 @@ for name, model in models.items():
     print(f"  0이 된 가중치: {n_zero}개\n")
 
 
-# ============================================================
-# 가중치 비교 시각화
-# ============================================================
+# 막대그래프를 겹쳐 그리면 모델별 계수 패턴 차이가 눈에 바로 들어옵니다.
 fig, ax = plt.subplots(figsize=(14, 7))
 x_pos = np.arange(len(feature_names))
 width = 0.2
@@ -99,9 +97,7 @@ plt.show()
 print("저장: regularization_weights.png")
 
 
-# ============================================================
-# 성능 비교
-# ============================================================
+# 같은 테스트셋에서 RMSE와 R²를 같이 보면 오차 크기와 설명력 두 관점을 함께 볼 수 있습니다.
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
 names = list(results.keys())
@@ -128,14 +124,12 @@ plt.savefig('regularization_performance.png', dpi=80)
 plt.show()
 
 
-# ============================================================
-# 자동으로 알파 찾기 (CV)
-# ============================================================
+# 고정 alpha가 아니라 교차검증으로 alpha를 자동 선택하는 실전 패턴입니다.
 print("\n" + "=" * 50)
 print("CV로 최적 alpha 찾기")
 print("=" * 50)
 
-# RidgeCV
+# RidgeCV는 alpha 후보 중 평균 검증 성능이 가장 좋은 값을 자동 선택합니다.
 rcv = RidgeCV(alphas=[0.001, 0.01, 0.1, 1, 10, 100, 1000], cv=5)
 pipe_rcv = Pipeline([('scaler', StandardScaler()), ('model', rcv)])
 pipe_rcv.fit(X_train, y_train)
@@ -143,7 +137,7 @@ print(f"\nRidge 최적 alpha: {pipe_rcv.named_steps['model'].alpha_}")
 y_pred = pipe_rcv.predict(X_test)
 print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.4f}")
 
-# LassoCV
+# LassoCV도 같은 방식으로 alpha를 찾되, L1 특성상 0 계수가 생길 수 있습니다.
 lcv = LassoCV(alphas=[0.001, 0.01, 0.1, 0.5, 1, 5, 10], cv=5, max_iter=10000)
 pipe_lcv = Pipeline([('scaler', StandardScaler()), ('model', lcv)])
 pipe_lcv.fit(X_train, y_train)
@@ -152,9 +146,7 @@ y_pred = pipe_lcv.predict(X_test)
 print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.4f}")
 
 
-# ============================================================
-# alpha에 따른 가중치 변화 (Ridge)
-# ============================================================
+# alpha를 키울수록 계수가 어떻게 0 근처로 모이는지 경로(path)로 확인합니다.
 print("\n[alpha를 키우면 Ridge 가중치들이 어떻게 변할까?]")
 
 alphas = [0.001, 0.01, 0.1, 1, 10, 100, 1000]

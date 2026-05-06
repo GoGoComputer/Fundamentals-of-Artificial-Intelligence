@@ -27,6 +27,18 @@ AI fundamentals study repository covering machine learning, deep learning, neura
 
 AI 기초, 인공지능 기초, 머신러닝 입문, 딥러닝 입문, 파이썬 AI, Python AI tutorial, machine learning tutorial, deep learning tutorial, PyTorch tutorial, scikit-learn tutorial, neural networks for beginners
 
+## 책 생성 워크플로우
+
+이 저장소는 상위 강의 폴더를 원본으로 쓰고, mdBook용 `src/`는 자동 생성합니다.
+
+- 이론 수정: `00-시작하기-전에/` ~ `06-프로덕션으로-가는-길/` 아래 원본 `.md`
+- 실습 수정: 각 장의 `실습/*.py`
+- 책 동기화: `python scripts/sync_book.py`
+- 책 빌드: `python scripts/build_book.py`
+- 실시간 미리보기: `python scripts/watch_book.py`
+
+실습 페이지는 자동 생성 시 항상 **생략 없는 전체 코드**를 그대로 포함합니다.
+
 > **누구를 위한 자료인가요?**
 > - "AI라는 단어만 들어도 머리가 아파요" 하시는 분
 > - "파이썬은 한 번도 안 짜봤어요" 하시는 분

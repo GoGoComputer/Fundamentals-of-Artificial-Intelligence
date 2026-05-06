@@ -14,9 +14,7 @@ torch.manual_seed(42)
 np.random.seed(42)
 
 
-# ============================================================
-# 진짜 패턴: y = sin(x) + noise
-# ============================================================
+# 작은 샘플로 sin 패턴을 만들면 모델 복잡도에 따른 과적합 차이를 명확하게 볼 수 있습니다.
 n_samples = 30   # 일부러 적게!
 X = np.linspace(0, 2*np.pi, n_samples)
 y = np.sin(X) + np.random.normal(0, 0.1, n_samples)
@@ -25,9 +23,7 @@ X_t = torch.tensor(X, dtype=torch.float32).unsqueeze(1)
 y_t = torch.tensor(y, dtype=torch.float32)
 
 
-# ============================================================
-# 너무 큰 모델 (과적합 유도)
-# ============================================================
+# 큰 모델은 표현력이 과도해 작은 데이터에서 학습점 자체를 외우는 경향이 강합니다.
 class TooBigModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -43,9 +39,7 @@ class TooBigModel(nn.Module):
         return self.fc4(x).squeeze()
 
 
-# ============================================================
-# 적당한 모델
-# ============================================================
+# 비교용으로 파라미터 수가 작은 모델을 두어 일반화 곡선을 함께 관찰합니다.
 class GoodModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -57,9 +51,7 @@ class GoodModel(nn.Module):
         return self.fc2(x).squeeze()
 
 
-# ============================================================
-# 학습 함수
-# ============================================================
+# 동일한 학습 함수로 두 모델을 돌리면 구조 차이만 결과에 반영되어 비교가 깔끔해집니다.
 def train_model(model, X, y, n_epochs=5000, lr=0.01):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
@@ -76,7 +68,7 @@ def train_model(model, X, y, n_epochs=5000, lr=0.01):
     return losses
 
 
-# 학습
+# 같은 데이터에 큰 모델/작은 모델을 각각 학습해 결과를 직접 비교합니다.
 print("[큰 모델 학습 중...]")
 big_model = TooBigModel()
 big_losses = train_model(big_model, X_t, y_t)
@@ -88,9 +80,7 @@ good_losses = train_model(good_model, X_t, y_t)
 print(f"  최종 Train Loss: {good_losses[-1]:.6f}")
 
 
-# ============================================================
-# 시각화
-# ============================================================
+# 함수 근사 곡선을 함께 그려 학습점 적합과 실제 함수 일반화 차이를 시각적으로 확인합니다.
 X_plot = np.linspace(0, 2*np.pi, 200)
 X_plot_t = torch.tensor(X_plot, dtype=torch.float32).unsqueeze(1)
 
@@ -127,9 +117,7 @@ plt.show()
 print("\n저장: overfitting_demo.png")
 
 
-# ============================================================
-# 학습 곡선
-# ============================================================
+# train loss만 보면 큰 모델이 좋아 보일 수 있다는 함정을 일부러 보여주는 그래프입니다.
 plt.figure(figsize=(10, 5))
 plt.plot(big_losses, label='큰 모델 (과적합)', color='red', alpha=0.7)
 plt.plot(good_losses, label='적당한 모델', color='blue', alpha=0.7)
@@ -143,9 +131,7 @@ plt.savefig('overfitting_curves.png', dpi=80)
 plt.show()
 
 
-# ============================================================
-# 결론
-# ============================================================
+# 출력 요약은 과적합의 핵심 징후와 대응 무기를 한 번 더 연결해 기억에 남게 합니다.
 print("""
 관찰할 점:
 1. 큰 모델은 모든 학습 점을 정확히 맞히지만 (Loss 매우 작음),

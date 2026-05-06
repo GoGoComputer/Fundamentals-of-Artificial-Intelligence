@@ -1,6 +1,7 @@
 """3장 6절 실습: 트리 기반 회귀 모델 비교
 
-선형 모델과 트리 모델의 성능 차이를 직접 확인합니다.
+선형 모델과 트리 계열 모델을 같은 데이터에서 비교해,
+어떤 상황에서 트리가 유리한지 감각을 만드는 실습입니다.
 """
 
 import numpy as np
@@ -19,7 +20,7 @@ from sklearn.ensemble import (
 )
 from sklearn.metrics import mean_squared_error, r2_score
 
-# XGBoost (있으면 추가)
+# XGBoost는 선택 의존성이라 설치된 환경에서만 비교 항목에 자동 추가합니다.
 try:
     from xgboost import XGBRegressor
     HAS_XGB = True
@@ -28,9 +29,7 @@ except ImportError:
     print("(XGBoost 없음. pip install xgboost로 설치하시면 더 비교 가능)")
 
 
-# ============================================================
-# 데이터 준비
-# ============================================================
+# 데이터 준비는 이전 실습과 동일하게 맞춰 모델 자체의 차이만 보이게 합니다.
 data_url = "http://lib.stat.cmu.edu/datasets/boston"
 raw_df = pd.read_csv(data_url, sep=r"\s+", skiprows=22, header=None)
 data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
@@ -45,11 +44,8 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# ============================================================
-# 모델 정의
-# ============================================================
-# Ridge는 정규화 필요, 트리는 안 필요
-# Pipeline으로 처리
+# 모델 정의 단계에서 핵심은 "모델마다 전처리 필요 여부가 다르다"는 점입니다.
+# Ridge는 스케일 영향을 받으므로 정규화 파이프라인을 붙이고, 트리는 원스케일로도 잘 동작합니다.
 models = {
     "Ridge (선형)": Pipeline([
         ('scaler', StandardScaler()),
@@ -70,9 +66,7 @@ if HAS_XGB:
     )
 
 
-# ============================================================
-# 학습 + 평가
-# ============================================================
+# 학습/평가를 한 루프로 묶으면 모델 수가 늘어나도 코드 중복이 줄어듭니다.
 results = []
 
 for name, model in models.items():
@@ -86,7 +80,7 @@ for name, model in models.items():
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     r2 = r2_score(y_test, y_pred)
 
-    # 훈련 점수도 (과적합 체크)
+    # train 점수까지 같이 기록하면 train-test 간격(gap)으로 과적합 여부를 빠르게 볼 수 있습니다.
     y_train_pred = model.predict(X_train)
     train_r2 = r2_score(y_train, y_train_pred)
 
@@ -103,9 +97,7 @@ for name, model in models.items():
     print(f"  RMSE: {rmse:.4f}, R²: {r2:.4f} (Train R²: {train_r2:.4f}), {train_time:.2f}s\n")
 
 
-# ============================================================
-# 결과 표
-# ============================================================
+# RMSE 기준 정렬 후 표로 출력하면 어떤 모델이 안정적으로 좋은지 한눈에 보입니다.
 results.sort(key=lambda r: r['rmse'])
 
 print("=" * 75)
@@ -116,12 +108,10 @@ for r in results:
           f"{r['train_r2']:>10.4f} {r['gap']:>8.4f} {r['time']:>8.2f}")
 print("=" * 75)
 
-print("\nGap이 크면 과적합. 단일 트리는 거의 항상 과적합돼요.")
+print("\nGap이 크면 과적합입니다. 특히 단일 Decision Tree는 train 성능이 과하게 높아지기 쉽습니다.")
 
 
-# ============================================================
-# 시각화: RMSE
-# ============================================================
+# 수평 막대그래프는 모델 이름이 길 때 가독성이 좋아 비교용으로 자주 씁니다.
 plt.figure(figsize=(10, 5))
 names = [r['name'] for r in results]
 rmses = [r['rmse'] for r in results]
@@ -140,9 +130,7 @@ plt.show()
 print("저장: tree_models_compare.png")
 
 
-# ============================================================
-# 특성 중요도 (Random Forest)
-# ============================================================
+# Random Forest는 feature_importances_를 제공하므로 어떤 입력이 기여했는지 볼 수 있습니다.
 rf = next(r['model'] for r in results if r['name'] == 'Random Forest')
 importances = pd.Series(rf.feature_importances_, index=X.columns)
 importances = importances.sort_values()
@@ -157,9 +145,7 @@ plt.show()
 print("저장: rf_importance.png")
 
 
-# ============================================================
-# 예측 vs 실제 (베스트 모델)
-# ============================================================
+# 마지막으로 베스트 모델의 예측-실제 산점도를 그려 오차 패턴을 시각적으로 확인합니다.
 best = results[0]
 y_pred = best['model'].predict(X_test)
 

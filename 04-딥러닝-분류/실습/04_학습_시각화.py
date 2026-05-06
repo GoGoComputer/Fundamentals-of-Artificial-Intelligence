@@ -1,7 +1,7 @@
 """4장 4절 실습: 실시간 학습 시각화
 
-학습이 진행되는 모습을 매 epoch마다 그래프로 보여줍니다.
-Colab에서 진짜 멋지게 동작해요.
+학습이 진행될 때 loss/accuracy 곡선을 epoch마다 갱신해 보여주는 실습입니다.
+그래프를 코드와 함께 보면 과적합/수렴 상태를 더 빨리 이해할 수 있습니다.
 """
 
 import torch
@@ -13,22 +13,19 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 try:
+    # 노트북 환경에서는 clear_output으로 이전 그래프를 지우며 실시간 대시보드처럼 갱신합니다.
     from IPython.display import clear_output
     IN_NOTEBOOK = True
 except ImportError:
     IN_NOTEBOOK = False
 
 
-# ============================================================
-# 설정
-# ============================================================
+# 장치 설정과 시드 고정은 실험 재현성과 실행 안정성을 위한 기본 준비입니다.
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(42)
 
 
-# ============================================================
-# 데이터
-# ============================================================
+# MNIST를 로드하고 DataLoader를 만들어 미니배치 학습이 가능하도록 준비합니다.
 transform = transforms.Compose([transforms.ToTensor()])
 train_set = datasets.MNIST('./data', train=True, download=True, transform=transform)
 test_set = datasets.MNIST('./data', train=False, download=True, transform=transform)
@@ -37,9 +34,7 @@ train_loader = DataLoader(train_set, batch_size=128, shuffle=True)
 test_loader = DataLoader(test_set, batch_size=128, shuffle=False)
 
 
-# ============================================================
-# 모델 (단순)
-# ============================================================
+# 모델은 단순 MLP 구조로 두고, 이번 실습의 초점을 "시각화"에 둡니다.
 model = nn.Sequential(
     nn.Flatten(),
     nn.Linear(784, 256),
@@ -53,14 +48,13 @@ loss_fn = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
-# ============================================================
-# 학습 함수
-# ============================================================
+# 학습 함수와 평가 함수를 분리하면 루프 본문이 짧아져 흐름 파악이 쉬워집니다.
 def train_one_epoch(model, loader):
     model.train()
     total_loss, correct, total = 0, 0, 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
+        # 아래 5줄이 딥러닝 학습의 표준 step 패턴입니다.
         optimizer.zero_grad()
         output = model(x)
         loss = loss_fn(output, y)
@@ -92,9 +86,7 @@ def evaluate(model, loader):
     return total_loss / len(loader), correct / total
 
 
-# ============================================================
-# 학습 + 매 epoch 시각화
-# ============================================================
+# 메인 루프에서는 매 epoch마다 학습/검증 지표를 누적하고 그래프를 즉시 갱신합니다.
 N_EPOCHS = 10
 train_losses, train_accs = [], []
 test_losses, test_accs = [], []
@@ -125,7 +117,7 @@ def update_plot(train_losses, train_accs, test_losses, test_accs, current_epoch)
     axes[1].legend()
     axes[1].grid(True, alpha=0.3)
 
-    # 진단 텍스트
+    # train-test 격차(gap)를 간단 규칙으로 표시해 과적합 여부를 빠르게 파악합니다.
     if len(test_accs) > 0:
         gap = train_accs[-1] - test_accs[-1]
         if gap > 0.05:
@@ -141,7 +133,9 @@ def update_plot(train_losses, train_accs, test_losses, test_accs, current_epoch)
 
 
 for epoch in range(N_EPOCHS):
+    # 학습 1 epoch 결과를 먼저 계산합니다.
     train_loss, train_acc = train_one_epoch(model, train_loader)
+    # 같은 epoch에서 검증셋 지표도 계산합니다.
     test_loss, test_acc = evaluate(model, test_loader)
 
     train_losses.append(train_loss)
@@ -156,9 +150,7 @@ for epoch in range(N_EPOCHS):
     update_plot(train_losses, train_accs, test_losses, test_accs, epoch+1)
 
 
-# ============================================================
-# 최종 그래프 저장
-# ============================================================
+# 마지막 그래프를 파일로 저장하면 보고서나 문서에 바로 첨부할 수 있습니다.
 plt.savefig('final_curves.png', dpi=80)
 print(f"\n최종 정확도: {test_accs[-1]:.4f}")
 print("저장: final_curves.png")

@@ -16,16 +16,12 @@ from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 
 
-# ============================================================
-# 시드
-# ============================================================
+# 시드를 고정해 실행할 때마다 결과가 크게 흔들리지 않도록 만듭니다.
 torch.manual_seed(42)
 np.random.seed(42)
 
 
-# ============================================================
-# 데이터
-# ============================================================
+# 1단계는 보스턴 데이터를 불러와 train/test 분할까지 수행합니다.
 data_url = "http://lib.stat.cmu.edu/datasets/boston"
 raw_df = pd.read_csv(data_url, sep=r"\s+", skiprows=22, header=None)
 data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
@@ -37,7 +33,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# 정규화
+# 회귀 딥러닝에서는 X뿐 아니라 y도 스케일링하면 학습 안정성과 수렴 속도가 좋아집니다.
 scaler_X = StandardScaler().fit(X_train)
 scaler_y = StandardScaler().fit(y_train.reshape(-1, 1))
 
@@ -47,23 +43,21 @@ y_train_s = scaler_y.transform(y_train.reshape(-1, 1)).flatten()
 y_test_s = scaler_y.transform(y_test.reshape(-1, 1)).flatten()
 
 
-# 텐서
+# 넘파이 배열을 float32 텐서로 바꿔 PyTorch 모델 입력 형식에 맞춥니다.
 X_train_t = torch.tensor(X_train_s, dtype=torch.float32)
 X_test_t = torch.tensor(X_test_s, dtype=torch.float32)
 y_train_t = torch.tensor(y_train_s, dtype=torch.float32)
 y_test_t = torch.tensor(y_test_s, dtype=torch.float32)
 
 
-# DataLoader
+# DataLoader는 미니배치 학습을 위한 반복 인터페이스를 제공합니다.
 train_loader = DataLoader(TensorDataset(X_train_t, y_train_t), batch_size=32, shuffle=True)
 test_loader = DataLoader(TensorDataset(X_test_t, y_test_t), batch_size=32, shuffle=False)
 
 print(f"학습: {X_train.shape}, 평가: {X_test.shape}")
 
 
-# ============================================================
-# 모델 (기본, 정규화 없음)
-# ============================================================
+# 이 파일은 "기본 모델" 기준선을 만드는 목적이라 Dropout/WeightDecay 없이 단순 구조를 사용합니다.
 class SimpleRegressor(nn.Module):
     def __init__(self, input_dim=13):
         super().__init__()
@@ -82,9 +76,7 @@ model = SimpleRegressor(input_dim=X_train.shape[1]).to(device)
 print(model)
 
 
-# ============================================================
-# 학습
-# ============================================================
+# 학습 루프는 매 epoch마다 train loss와 test loss를 기록해 과적합 신호를 관찰합니다.
 loss_fn = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -117,9 +109,7 @@ for epoch in range(n_epochs):
         print(f"Epoch {epoch+1:3d}: train={train_losses[-1]:.4f}, test={test_losses[-1]:.4f}")
 
 
-# ============================================================
-# 평가 (원래 단위로)
-# ============================================================
+# 예측값을 원래 단위로 inverse_transform한 뒤 RMSE/R²를 계산해야 해석이 가능합니다.
 model.eval()
 with torch.no_grad():
     pred_s = model(X_test_t.to(device)).cpu().numpy()
@@ -134,9 +124,7 @@ print(f"  RMSE: {rmse:.4f}    (단위: $1000)")
 print(f"  R²:   {r2:.4f}")
 
 
-# ============================================================
-# 학습 곡선
-# ============================================================
+# 손실 곡선을 저장해 다음 실습(과적합 유도)과 비교 기준으로 사용합니다.
 plt.figure(figsize=(10, 5))
 plt.plot(train_losses, label='Train')
 plt.plot(test_losses, label='Test')
@@ -149,9 +137,7 @@ plt.savefig('basic_dl_regression.png', dpi=80)
 plt.show()
 
 
-# ============================================================
-# 예측 vs 실제
-# ============================================================
+# 예측-실제 산점도로 모델이 고가/저가 구간에서 어느 정도 맞추는지 확인합니다.
 plt.figure(figsize=(8, 8))
 plt.scatter(y_test, pred_original, alpha=0.5, color='steelblue')
 plt.plot([y_test.min(), y_test.max()],

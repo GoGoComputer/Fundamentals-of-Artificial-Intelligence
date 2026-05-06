@@ -72,19 +72,54 @@ Fundamentals-of-Artificial-Intelligence/
 
 ## 🔧 책 수정 / 다시 빌드하기
 
-### 1. 원본 파일 수정
+### 1. 강의 원본 수정
 
-`src/` 폴더의 마크다운 파일을 수정하세요.
+이제 책의 원본은 `src/`가 아니라 상위 강의 폴더입니다.
 
-### 2. 책 다시 빌드
+- 이론: `00-시작하기-전에/` ~ `06-프로덕션으로-가는-길/` 아래 원본 `.md`
+- 실습: 각 장의 `실습/*.py`
+- 책용 `src/`는 위 원본에서 **자동 생성**됩니다.
+
+### 2. 원본을 책 소스로 동기화
+
+```bash
+cd /Users/mo/DEV/devStudy/Fundamentals-of-Artificial-Intelligence
+python scripts/sync_book.py
+```
+
+이 명령은 다음을 자동으로 처리합니다.
+
+- 강의 원본 이론 파일을 `src/`로 반영
+- 실습 `.py` 파일을 mdBook용 실습 페이지로 생성
+- `src/SUMMARY.md` 자동 재생성
+- 책 안 링크를 mdBook 페이지 기준으로 자동 보정
+
+실습 페이지의 코드는 항상 **생략 없는 전체 코드**로 들어갑니다.
+
+### 3. 책 다시 빌드
+
+```bash
+cd /Users/mo/DEV/devStudy/Fundamentals-of-Artificial-Intelligence
+python scripts/build_book.py
+```
+
+이 명령은 `sync_book.py`를 먼저 실행한 뒤 `mdbook build`까지 이어서 수행합니다.
+
+### 4. 변경 사항 실시간 보기
+
+```bash
+cd /Users/mo/DEV/devStudy/Fundamentals-of-Artificial-Intelligence
+python scripts/watch_book.py
+```
+
+이 모드에서는 강의 원본이 바뀌면 자동으로 `src/`를 다시 생성하고, `mdbook serve`로 미리보기를 계속 유지합니다.
+
+### 5. 직접 mdBook만 실행하고 싶을 때
+
+이미 `src/`가 최신 상태라는 것이 확실할 때만 아래 명령을 직접 써도 됩니다.
 
 ```bash
 mdbook build
-```
-
-### 3. 변경 사항 실시간 보기
-
-```bash
 mdbook serve
 ```
 

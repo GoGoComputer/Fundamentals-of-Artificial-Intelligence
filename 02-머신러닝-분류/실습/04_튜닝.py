@@ -1,6 +1,7 @@
 """2장 7절 실습: RandomizedSearchCV로 하이퍼파라미터 튜닝
 
-기본 옵션 vs 튜닝 후를 직접 비교해 보세요.
+기본 옵션과 튜닝 후 성능을 같은 데이터로 비교해 보는 실습입니다.
+코드를 읽을 때는 "무엇을 바꾸고", "어떻게 비교하고", "왜 좋아졌는지"를 중심으로 보세요.
 """
 
 import numpy as np
@@ -13,12 +14,12 @@ from sklearn.metrics import classification_report, accuracy_score
 from scipy.stats import randint
 
 
-# ============================================================
-# 데이터 준비
-# ============================================================
+# 데이터 준비 구간에서는 모델보다 먼저 입력 X와 정답 y를 동일한 조건으로 만듭니다.
 print("[1] 데이터 준비")
 mnist = fetch_openml('mnist_784', version=1, as_frame=False, parser='auto')
+# 실습 시간을 줄이기 위해 전체 7만 장 대신 앞쪽 3000장만 사용합니다.
 X = mnist.data[:3000] / 255.0
+# 라벨은 문자열이 아닌 정수로 바꿔야 분류 모델이 안정적으로 동작합니다.
 y = mnist.target[:3000].astype(np.int64)
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -26,12 +27,11 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# ============================================================
-# 베이스라인 (기본 옵션)
-# ============================================================
+# 베이스라인은 "튜닝하지 않은 기본 모델" 성능을 기록하는 기준점입니다.
 print("\n[2] 베이스라인 (기본 옵션)")
 print("-" * 40)
 
+# 여기 성능이 기준이 되므로 random_state를 고정해 재현 가능하게 맞춥니다.
 baseline = RandomForestClassifier(random_state=42, n_jobs=-1)
 baseline.fit(X_train, y_train)
 
@@ -39,27 +39,29 @@ baseline_acc = accuracy_score(y_test, baseline.predict(X_test))
 print(f"기본 옵션 정확도: {baseline_acc:.4f}")
 
 
-# ============================================================
-# 튜닝
-# ============================================================
+# 이제 모델의 설정값을 자동 탐색해서 더 나은 조합을 찾는 단계로 들어갑니다.
 print("\n[3] 하이퍼파라미터 탐색 (RandomizedSearchCV)")
 print("-" * 40)
 print("30가지 조합 × 5-fold CV = 150번 학습")
 print("몇 분 걸려요...\n")
 
-# 탐색 공간
+# 탐색 공간은 "이 범위 안에서 값을 뽑아 보라"는 검색 후보집입니다.
 param_dist = {
     'n_estimators': randint(50, 300),
     'max_depth': randint(5, 30),
     'min_samples_split': randint(2, 20),
     'min_samples_leaf': randint(1, 10),
+    # max_features는 트리 분기 때 볼 특성 수 규칙이며 과적합과 다양성에 영향을 줍니다.
     'max_features': ['sqrt', 'log2'],
 }
 
+# RandomizedSearchCV는 지정 횟수만큼 랜덤 조합을 뽑아 교차검증으로 평가합니다.
 search = RandomizedSearchCV(
     estimator=RandomForestClassifier(random_state=42, n_jobs=-1),
     param_distributions=param_dist,
+    # n_iter=30이면 30개의 랜덤 조합을 실험합니다.
     n_iter=30,
+    # cv=5는 각 조합마다 5-fold로 평가해 평균 점수를 계산한다는 뜻입니다.
     cv=5,
     scoring='accuracy',
     n_jobs=-1,
@@ -76,9 +78,7 @@ for k, v in search.best_params_.items():
     print(f"  {k}: {v}")
 
 
-# ============================================================
-# 튜닝된 모델 평가
-# ============================================================
+# 탐색이 끝나면 best_estimator_에 "가장 점수가 좋았던 조합" 모델이 들어 있습니다.
 print("\n[4] 튜닝된 모델로 test 평가")
 print("-" * 40)
 
@@ -93,9 +93,7 @@ print("\n분류 리포트:")
 print(classification_report(y_test, y_pred))
 
 
-# ============================================================
-# 비교 시각화
-# ============================================================
+# 막대그래프로 기준 모델과 튜닝 모델을 나란히 보면 개선폭을 직관적으로 볼 수 있습니다.
 labels = ['베이스라인', '튜닝 후']
 accs = [baseline_acc, tuned_acc]
 colors = ['lightblue', 'mediumseagreen']
@@ -112,7 +110,7 @@ for bar, acc in zip(bars, accs):
         f'{acc:.4f}', ha='center', fontsize=12, fontweight='bold'
     )
 
-# 차이 표시
+# 차이를 별도 텍스트로 적어 두면 숫자 비교가 더 빨라집니다.
 diff = tuned_acc - baseline_acc
 plt.text(
     0.5, max(accs) + 0.005,
@@ -127,13 +125,12 @@ plt.show()
 print("\n저장: tuning_effect.png")
 
 
-# ============================================================
-# 탐색 과정 분석
-# ============================================================
+# 마지막으로 "랜덤 탐색 30번이 어떤 분포를 보였는지"를 확인합니다.
 print("\n[5] 탐색 과정 분석")
 print("-" * 40)
 
 import pandas as pd
+# cv_results_는 각 조합의 점수/분산/파라미터를 담은 로그 테이블입니다.
 results_df = pd.DataFrame(search.cv_results_)
 results_df = results_df.sort_values('mean_test_score', ascending=False)
 

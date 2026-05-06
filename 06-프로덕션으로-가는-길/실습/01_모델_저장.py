@@ -1,7 +1,7 @@
 """6장 1~2절 실습: 모델 패키징과 저장
 
-학습된 모델을 운영용 패키지로 만듭니다.
-이 패키지는 다음 실습(FastAPI)에서 사용해요.
+학습된 모델을 운영 가능한 폴더 구조로 묶어 저장하는 실습입니다.
+이 단계가 되어야 다음 실습(FastAPI)에서 안정적으로 로드해 서비스할 수 있습니다.
 """
 
 import os
@@ -18,9 +18,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 
-# ============================================================
-# 1. 데이터 + 학습
-# ============================================================
+# 1단계는 모델 학습까지 수행해 저장할 실제 pipeline 객체를 만듭니다.
 print("[1] 데이터 준비 + 모델 학습")
 
 data_url = "http://lib.stat.cmu.edu/datasets/boston"
@@ -39,9 +37,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 
-# ============================================================
-# 2. Pipeline (정규화 + 모델 묶기)
-# ============================================================
+# Pipeline으로 전처리+모델을 한 객체로 저장하면 서빙 시 전처리 누락을 방지할 수 있습니다.
 print("\n[2] Pipeline 구성")
 
 pipeline = Pipeline([
@@ -54,9 +50,7 @@ pipeline = Pipeline([
 pipeline.fit(X_train, y_train)
 
 
-# ============================================================
-# 3. 평가
-# ============================================================
+# 저장 전에 최소 성능을 확인해 "학습 실패 모델"이 배포로 넘어가지 않게 합니다.
 y_pred = pipeline.predict(X_test)
 metrics = {
     'rmse': float(np.sqrt(mean_squared_error(y_test, y_pred))),
@@ -66,9 +60,7 @@ metrics = {
 print(f"\n성능: {metrics}")
 
 
-# ============================================================
-# 4. 저장 (운영용 번들)
-# ============================================================
+# 4단계는 운영용 번들 폴더를 만들고 모델/메타데이터/실행 안내 파일을 함께 저장합니다.
 print("\n[3] 모델 번들 저장")
 
 VERSION = '1.0.0'
@@ -76,11 +68,11 @@ output_dir = f'models/boston_v{VERSION}'
 os.makedirs(output_dir, exist_ok=True)
 
 
-# 4-1. Pipeline 저장
+# 4-1. pipeline.pkl에는 scaler와 모델이 모두 들어 있어 추론 시 학습 때와 동일한 변환이 보장됩니다.
 joblib.dump(pipeline, os.path.join(output_dir, 'pipeline.pkl'))
 
 
-# 4-2. 메타데이터
+# 4-2. metadata.json은 운영 단계에서 모델 카드/버전 추적/입력 계약 확인에 사용됩니다.
 metadata = {
     'name': 'boston_house_price_predictor',
     'version': VERSION,
@@ -120,7 +112,7 @@ with open(os.path.join(output_dir, 'metadata.json'), 'w', encoding='utf-8') as f
     json.dump(metadata, f, indent=2, ensure_ascii=False)
 
 
-# 4-3. requirements.txt
+# 4-3. requirements.txt를 같이 저장해 배포 환경에서 패키지 버전을 재현합니다.
 with open(os.path.join(output_dir, 'requirements.txt'), 'w') as f:
     f.write("""scikit-learn==1.3.0
 numpy==1.26.0
@@ -132,7 +124,7 @@ pydantic==2.4.0
 """)
 
 
-# 4-4. README.md
+# 4-4. README는 사람이 바로 이해할 수 있게 성능/입력/사용법을 요약합니다.
 readme_content = f"""# Boston House Price Predictor v{VERSION}
 
 ## 설명
@@ -173,7 +165,7 @@ with open(os.path.join(output_dir, 'README.md'), 'w', encoding='utf-8') as f:
     f.write(readme_content)
 
 
-# 4-5. example_usage.py
+# 4-5. example_usage.py는 운영팀/동료가 즉시 실행 가능한 최소 예제를 제공합니다.
 example = '''"""사용 예시 — 이대로 실행하면 됨."""
 import joblib
 import pandas as pd
@@ -212,9 +204,7 @@ for fname in sorted(os.listdir(output_dir)):
     print(f"  - {fname}")
 
 
-# ============================================================
-# 5. 불러와서 사용해 보기 (검증)
-# ============================================================
+# 마지막 검증으로 저장 직후 재로딩 예측이 동일한지 확인해 파일 손상/직렬화 문제를 점검합니다.
 print(f"\n[4] 저장된 모델 불러와서 검증")
 
 loaded_pipeline = joblib.load(os.path.join(output_dir, 'pipeline.pkl'))

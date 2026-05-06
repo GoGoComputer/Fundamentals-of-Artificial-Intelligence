@@ -10,7 +10,7 @@
 또는:
     python 02_FastAPI_서빙.py
 
-실행 후 http://localhost:8000/docs 에서 인터페이스 확인.
+실행 후 http://localhost:8000/docs 에서 인터페이스를 확인하세요.
 """
 
 import logging
@@ -27,9 +27,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 
-# ============================================================
-# 로깅
-# ============================================================
+# 로깅 설정은 요청 처리 시간과 예외를 추적하기 위한 운영 기본 장치입니다.
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -37,14 +35,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ============================================================
-# 모델 불러오기 (앱 시작 시 한 번)
-# ============================================================
+# 앱 시작 시 모델과 메타데이터를 한 번만 메모리에 올려 추론 지연을 줄입니다.
 MODEL_DIR = Path('models/boston_v1.0.0')
 PIPELINE_PATH = MODEL_DIR / 'pipeline.pkl'
 METADATA_PATH = MODEL_DIR / 'metadata.json'
 
 if not PIPELINE_PATH.exists():
+    # 모델 파일이 없으면 서버를 억지로 올리지 않고 즉시 실패시켜 문제를 빨리 알립니다.
     raise RuntimeError(
         f"모델 파일이 없습니다: {PIPELINE_PATH}\n"
         f"01_모델_저장.py를 먼저 실행해 주세요."
@@ -61,9 +58,7 @@ FEATURE_NAMES = metadata['data_info']['features']
 logger.info(f"모델 불러옴: v{MODEL_VERSION}")
 
 
-# ============================================================
-# 입력/출력 스키마
-# ============================================================
+# Pydantic 스키마는 API 입력 검증과 자동 문서화(/docs)의 핵심입니다.
 class HouseFeatures(BaseModel):
     CRIM: float = Field(..., description="범죄율", ge=0)
     ZN: float = Field(..., description="주거지 비율", ge=0)
@@ -108,9 +103,7 @@ class BatchResponse(BaseModel):
     inference_time_ms: float
 
 
-# ============================================================
-# FastAPI 앱
-# ============================================================
+# FastAPI 앱 메타데이터를 넣어 문서 페이지에서 서비스 정보를 바로 확인할 수 있게 합니다.
 app = FastAPI(
     title="Boston House Price Predictor",
     description="보스턴 지역 집값 예측 API",
@@ -118,9 +111,7 @@ app = FastAPI(
 )
 
 
-# ============================================================
-# 미들웨어: 모든 요청 로깅
-# ============================================================
+# 미들웨어에서 모든 요청 시간을 기록하면 병목 구간을 파악하기 쉬워집니다.
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.time()
@@ -134,9 +125,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# ============================================================
-# 엔드포인트들
-# ============================================================
+# 아래 엔드포인트들은 상태 확인/단건 예측/배치 예측/메타정보 제공 역할로 분리되어 있습니다.
 @app.get("/")
 def root():
     return {
@@ -170,16 +159,16 @@ def predict(features: HouseFeatures):
     start = time.time()
 
     try:
-        # dict → DataFrame (sklearn pipeline은 DataFrame 받음)
+        # Pydantic 객체를 DataFrame으로 바꿔 sklearn pipeline 입력 형식에 맞춥니다.
         input_df = pd.DataFrame([features.model_dump()])
 
-        # 컬럼 순서 보장
+        # 학습 시 사용한 컬럼 순서를 그대로 강제해 열 순서 불일치 버그를 방지합니다.
         input_df = input_df[FEATURE_NAMES]
 
-        # 예측
+        # pipeline이 내부에서 스케일링 후 모델 예측까지 한 번에 수행합니다.
         prediction = float(pipeline.predict(input_df)[0])
 
-        # 음수 방지
+        # 집값 음수 같은 비현실 출력은 0으로 바닥 제한합니다.
         prediction = max(0.0, prediction)
 
         duration_ms = (time.time() - start) * 1000
@@ -204,6 +193,7 @@ def predict_batch(request: BatchRequest):
         raise HTTPException(status_code=400, detail="At least one sample required")
 
     if len(request.samples) > 1000:
+        # 과도한 요청으로 서버가 잠기지 않도록 배치 크기에 상한을 둡니다.
         raise HTTPException(status_code=400, detail="Max 1000 samples per request")
 
     try:
@@ -227,9 +217,7 @@ def predict_batch(request: BatchRequest):
         raise HTTPException(status_code=500, detail=f"Batch prediction failed: {e}")
 
 
-# ============================================================
-# 에러 핸들러
-# ============================================================
+# 전역 예외 핸들러는 상세 스택은 로그에 남기고 응답은 안전한 메시지로 제한합니다.
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled error: {exc}", exc_info=True)
@@ -239,9 +227,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# ============================================================
-# 직접 실행
-# ============================================================
+# 모듈 직접 실행 시에는 uvicorn.run으로 개발 서버를 즉시 띄울 수 있습니다.
 if __name__ == "__main__":
     import uvicorn
     print("=" * 60)

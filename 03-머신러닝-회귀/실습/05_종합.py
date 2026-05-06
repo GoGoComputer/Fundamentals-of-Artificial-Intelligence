@@ -1,7 +1,7 @@
 """3장 종합 실습: 모든 회귀 모델 비교 + 튜닝
 
-실제 회사에서 회귀 문제를 만났을 때 어떻게 접근하는지를
-한 파일에 다 담았습니다. 길지만 따라오시면 큰 그림이 잡힙니다.
+현업에서 회귀 문제를 받을 때 자주 쓰는 전체 흐름을 한 번에 담은 파일입니다.
+베이스라인 비교 -> 튜닝 -> 최종 평가 -> 저장까지 순서대로 따라오면 실무 뼈대가 잡힙니다.
 """
 
 import numpy as np
@@ -26,9 +26,7 @@ from sklearn.metrics import (
 from scipy.stats import randint, uniform
 
 
-# ============================================================
-# 1단계: 데이터 준비
-# ============================================================
+# 1단계는 데이터 로드/분할을 수행해 이후 모든 모델이 동일 조건에서 비교되게 만듭니다.
 print("=" * 60)
 print("[1단계] 데이터 준비")
 print("=" * 60)
@@ -48,9 +46,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"학습: {X_train.shape}, 평가: {X_test.shape}")
 
 
-# ============================================================
-# 2단계: 베이스라인 모델들 빠르게 비교
-# ============================================================
+# 2단계는 여러 모델을 기본 옵션으로 빠르게 돌려 "출발점"을 잡는 단계입니다.
 print("\n" + "=" * 60)
 print("[2단계] 베이스라인 모델 비교 (모두 기본 옵션)")
 print("=" * 60)
@@ -67,14 +63,14 @@ baseline_models = {
 
 baseline_results = {}
 for name, model in baseline_models.items():
-    # 5-fold CV로 안정적 측정
+    # 교차검증 점수는 데이터 분할 운에 덜 민감해 모델 간 공정 비교에 유리합니다.
     scores = cross_val_score(
         model, X_train, y_train,
         cv=5, scoring='neg_mean_squared_error', n_jobs=-1,
     )
     rmse_cv = np.sqrt(-scores.mean())
 
-    # test도 평가
+    # 테스트셋 점수도 같이 출력해 CV와 실제 hold-out 성능 차이를 봅니다.
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     rmse_test = np.sqrt(mean_squared_error(y_test, y_pred))
@@ -88,9 +84,7 @@ best_baseline = min(baseline_results.items(), key=lambda x: x[1]['cv_rmse'])
 print(f"\n베스트 베이스라인: {best_baseline[0]} (CV RMSE: {best_baseline[1]['cv_rmse']:.3f})")
 
 
-# ============================================================
-# 3단계: 베스트 모델 튜닝 (Random Forest 가정)
-# ============================================================
+# 3단계는 베이스라인에서 유망한 모델을 골라 하이퍼파라미터 탐색으로 성능을 끌어올립니다.
 print("\n" + "=" * 60)
 print("[3단계] Random Forest 튜닝 (RandomizedSearchCV)")
 print("=" * 60)
@@ -106,6 +100,7 @@ param_dist = {
 search = RandomizedSearchCV(
     estimator=RandomForestRegressor(random_state=42, n_jobs=-1),
     param_distributions=param_dist,
+    # 30회 랜덤 탐색으로 계산 비용과 탐색 폭의 균형을 맞춥니다.
     n_iter=30,
     cv=5,
     scoring='neg_mean_squared_error',
@@ -123,9 +118,7 @@ for k, v in search.best_params_.items():
     print(f"  {k}: {v}")
 
 
-# ============================================================
-# 4단계: 최종 평가
-# ============================================================
+# 4단계는 튜닝된 베스트 모델을 테스트셋에서 최종 확정 지표로 평가합니다.
 print("\n" + "=" * 60)
 print("[4단계] 최종 평가")
 print("=" * 60)
@@ -145,16 +138,14 @@ print(f"\n  베이스라인 대비 RMSE 개선: "
       f"{baseline_results['Random Forest']['test_rmse'] - rmse:+.3f}")
 
 
-# ============================================================
-# 5단계: 시각화
-# ============================================================
+# 5단계 시각화는 결과를 설명 가능한 형태로 바꿔 보고서/발표에 바로 쓰기 좋게 만듭니다.
 print("\n" + "=" * 60)
 print("[5단계] 시각화")
 print("=" * 60)
 
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-# 1. 베이스라인 비교
+# 1) 베이스라인 모델 간 CV RMSE 비교
 names = list(baseline_results.keys())
 cv_rmses = [baseline_results[n]['cv_rmse'] for n in names]
 axes[0, 0].barh(names, cv_rmses, color='lightblue')
@@ -162,7 +153,7 @@ axes[0, 0].set_xlabel('CV RMSE')
 axes[0, 0].set_title('베이스라인 모델 비교')
 axes[0, 0].grid(axis='x', alpha=0.3)
 
-# 2. 예측 vs 실제 (베스트 모델)
+# 2) 예측 vs 실제 산점도로 모델 캘리브레이션 상태 확인
 axes[0, 1].scatter(y_test, y_pred, alpha=0.5, color='steelblue')
 axes[0, 1].plot([y_test.min(), y_test.max()],
                 [y_test.min(), y_test.max()], 'r--', lw=2)
@@ -171,7 +162,7 @@ axes[0, 1].set_ylabel('예측값')
 axes[0, 1].set_title(f'예측 vs 실제 (튜닝된 Random Forest)\nR² = {r2:.4f}')
 axes[0, 1].grid(alpha=0.3)
 
-# 3. 잔차 분석
+# 3) 잔차 플롯으로 체계적 오차 패턴(편향)을 점검
 residuals = y_test - y_pred
 axes[1, 0].scatter(y_pred, residuals, alpha=0.5, color='steelblue')
 axes[1, 0].axhline(0, color='red', linestyle='--')
@@ -180,7 +171,7 @@ axes[1, 0].set_ylabel('잔차')
 axes[1, 0].set_title('잔차 플롯')
 axes[1, 0].grid(alpha=0.3)
 
-# 4. 특성 중요도
+# 4) 트리 모델 특성 중요도로 의사결정에 기여한 입력 확인
 importances = pd.Series(
     best_model.feature_importances_,
     index=X.columns,
@@ -197,9 +188,7 @@ plt.show()
 print("저장: regression_summary.png")
 
 
-# ============================================================
-# 6단계: 모델 저장
-# ============================================================
+# 6단계는 모델 아티팩트와 메타데이터를 함께 저장해 재현성과 배포 준비를 끝냅니다.
 print("\n" + "=" * 60)
 print("[6단계] 모델 저장")
 print("=" * 60)
