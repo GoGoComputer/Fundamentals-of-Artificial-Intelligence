@@ -10,3 +10,7 @@ target/
 
 # 빌드 결과
 *.html
+
+__pycache__/
+*.pyc
+.tmp*
