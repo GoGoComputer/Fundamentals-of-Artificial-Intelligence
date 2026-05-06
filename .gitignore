@@ -1,0 +1,12 @@
+# mdBook
+book/
+target/
+
+# 편집기
+.DS_Store
+*.swp
+*.swo
+*~
+
+# 빌드 결과
+*.html

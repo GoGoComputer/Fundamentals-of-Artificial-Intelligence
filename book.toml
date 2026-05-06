@@ -1,0 +1,16 @@
+[book]
+title = "인공지능 기초 (Fundamentals of Artificial Intelligence)"
+authors = ["강희성", "박성모"]
+description = "파이썬부터 딥러닝까지, AI 기초를 한 권에 담은 책"
+language = "ko"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "dark"
+
+[output.html.print]
+enable = true
