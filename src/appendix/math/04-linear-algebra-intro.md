@@ -474,4 +474,4 @@ y = softmax(W₂ × ReLU(W₁ × x + b₁) + b₂)
 
 </details>
 
-➡️ 다음: [5. 확률통계 입문](05-확률통계-입문.md)
+➡️ 다음: [5. 확률통계 입문](05-probability-stats-intro.md)
