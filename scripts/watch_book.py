@@ -4,7 +4,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from sync_book import CHAPTERS, ROOT, collect_practice_sources, sync_book_sources
+from sync_book import APPENDICES, CHAPTERS, ROOT, collect_practice_sources, sync_book_sources
 
 
 def iter_source_files() -> list[Path]:
@@ -16,6 +16,8 @@ def iter_source_files() -> list[Path]:
         files.extend(sorted(chapter.theory_dir.glob(chapter.theory_glob)))
         if chapter.practice_dir is not None:
             files.extend(collect_practice_sources(chapter.practice_dir))
+    for appendix in APPENDICES:
+        files.extend(sorted(appendix.source_dir.glob("*.md")))
     return files
 
 

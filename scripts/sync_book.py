@@ -178,11 +178,18 @@ CHAPTERS: tuple[ChapterConfig, ...] = (
 
 @dataclass(frozen=True)
 class AppendixConfig:
-    """부록 원본 → src/appendix 대응. SUMMARY.md의 '# 부록' 절은 손으로 관리합니다."""
+    """부록 원본 → src/appendix 대응.
+
+    slugs 의 순서가 책 목차(SUMMARY.md '# 부록' 절) 순서가 됩니다.
+    README.md 는 index_slug 이름의 안내 페이지로 함께 들어갑니다.
+    'a' 가 붙은 심화 글(01a, 02a …)은 바로 앞 글 아래에 들여써서 나열합니다.
+    """
 
     source_dir: Path
     target_dir: Path
     slugs: dict[str, str]
+    index_slug: str = "README"
+    index_title: str | None = None
 
 
 APPENDICES: tuple[AppendixConfig, ...] = (
@@ -190,16 +197,18 @@ APPENDICES: tuple[AppendixConfig, ...] = (
         source_dir=ROOT / "부록",
         target_dir=SRC_ROOT / "appendix",
         slugs={
+            "신경망-가족-한눈에": "neural-networks-overview",
+            "정규화-총정리": "regularization-summary",
             "용어-사전": "glossary",
             "자주-묻는-질문": "faq",
             "더-나아가기": "further-reading",
-            "정규화-총정리": "regularization-summary",
-            "신경망-가족-한눈에": "neural-networks-overview",
         },
+        index_title="부록 안내",
     ),
     AppendixConfig(
         source_dir=ROOT / "부록" / "수학",
         target_dir=SRC_ROOT / "appendix" / "math",
+        index_title="수학 부록 안내",
         slugs={
             "00-수학이-왜-필요한가": "00-why-math",
             "01-중학수학-복습": "01-middle-school-math",
@@ -302,14 +311,6 @@ def practice_code_fence(source_path: Path) -> str:
     return "text"
 
 
-def read_appendix_section() -> str:
-    summary_text = SUMMARY_PATH.read_text(encoding="utf-8")
-    marker = "# 부록"
-    if marker not in summary_text:
-        raise RuntimeError("src/SUMMARY.md 에서 '# 부록' 섹션을 찾지 못했습니다.")
-    return summary_text.split(marker, maxsplit=1)[1].strip()
-
-
 def relative_key(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
@@ -329,7 +330,19 @@ def resolve_theory_pairs(theory_dir: Path, theory_glob: str, slugs: dict[str, st
             f"{theory_dir.relative_to(ROOT)} 에 없는 파일이 slugs 에 남아 있습니다: {unused}\n"
             f"scripts/sync_book.py 의 slugs 에서 지우거나 파일 이름을 확인해 주세요."
         )
+    order = {stem: index for index, stem in enumerate(slugs)}
+    sources.sort(key=lambda path: order[path.stem])  # slugs 에 적은 순서 = 책 목차 순서
     return tuple((path, target_dir / f"{slugs[path.stem]}.md") for path in sources)
+
+
+def resolve_appendix_pairs(appendix: AppendixConfig) -> tuple[tuple[Path, Path], ...]:
+    """부록 폴더의 README.md(안내 페이지)와 본문 글들을 책용 경로에 대응시킵니다."""
+    pairs: list[tuple[Path, Path]] = []
+    index_source = appendix.source_dir / "README.md"
+    if index_source.exists():
+        pairs.append((index_source, appendix.target_dir / f"{appendix.index_slug}.md"))
+    pairs.extend(resolve_theory_pairs(appendix.source_dir, "*.md", appendix.slugs, appendix.target_dir))
+    return tuple(pairs)
 
 
 def build_link_maps() -> tuple[dict[str, Path], dict[Path, tuple[tuple[Path, Path], ...]], dict[Path, tuple[Path, ...]], dict[Path, Path]]:
@@ -360,11 +373,10 @@ def build_link_maps() -> tuple[dict[str, Path], dict[Path, tuple[tuple[Path, Pat
         chapter_practice_sources[chapter.source_dir] = practice_sources
 
     for appendix in APPENDICES:
-        for source_path, target_path in resolve_theory_pairs(appendix.source_dir, "*.md", appendix.slugs, appendix.target_dir):
+        for source_path, target_path in resolve_appendix_pairs(appendix):
             file_map[relative_key(source_path)] = target_path
-        # 부록 폴더 자체(README.md)로 가는 링크는 수학 부록 첫 글 / 용어 사전으로 보냅니다.
-        file_map.setdefault(relative_key(appendix.source_dir), appendix.target_dir / f"{next(iter(appendix.slugs.values()))}.md")
-        file_map.setdefault(relative_key(appendix.source_dir / "README.md"), appendix.target_dir / f"{next(iter(appendix.slugs.values()))}.md")
+        file_map.setdefault(relative_key(appendix.source_dir), appendix.target_dir / f"{appendix.index_slug}.md")
+        file_map.setdefault(relative_key(appendix.source_dir / "README.md"), appendix.target_dir / f"{appendix.index_slug}.md")
 
     file_map[relative_key(ROOT / "README.md")] = SRC_ROOT / "intro.md"
     file_map[relative_key(ROOT / "CURRICULUM.md")] = SRC_ROOT / "intro.md"
@@ -430,12 +442,40 @@ def sync_theory(chapter: ChapterConfig, pairs: tuple[tuple[Path, Path], ...], li
     return synced
 
 
-def sync_appendix(link_map: dict[str, Path], changed: list[Path]) -> None:
+def sync_appendix(link_map: dict[str, Path], changed: list[Path]) -> list[tuple[AppendixConfig, list[tuple[str, Path]]]]:
+    entries: list[tuple[AppendixConfig, list[tuple[str, Path]]]] = []
     for appendix in APPENDICES:
-        for source_path, target_path in resolve_theory_pairs(appendix.source_dir, "*.md", appendix.slugs, appendix.target_dir):
+        pairs = resolve_appendix_pairs(appendix)
+        expected = {target_path for _, target_path in pairs}
+        synced: list[tuple[str, Path]] = []
+        for source_path, target_path in pairs:
             content = rewrite_markdown_links(source_path.read_text(encoding="utf-8"), source_path, target_path, link_map)
             if write_text_if_changed(target_path, content):
                 changed.append(target_path)
+            title = appendix.index_title if (source_path.name == "README.md" and appendix.index_title) else extract_markdown_title(source_path)
+            synced.append((title, target_path))
+        if appendix.target_dir.exists():
+            for stale in sorted(appendix.target_dir.glob("*.md")):
+                if stale not in expected:
+                    stale.unlink()
+                    changed.append(stale)
+        entries.append((appendix, synced))
+    return entries
+
+
+def render_appendix_summary(appendix_entries: list[tuple[AppendixConfig, list[tuple[str, Path]]]]) -> str:
+    """'# 부록' 절을 만듭니다. 심화 글(파일 이름에 'a' 가 붙은 것)은 앞 글 아래에 들여씁니다."""
+    blocks: list[str] = []
+    for appendix, synced in appendix_entries:
+        lines: list[str] = []
+        for title, target_path in synced:
+            rel_path = target_path.relative_to(SRC_ROOT).as_posix()
+            stem = target_path.stem
+            advanced = re.match(r"^\d+a-", stem) is not None
+            indent = "  " if advanced else ""
+            lines.append(f"{indent}- [{title}](./{rel_path})")
+        blocks.append("\n".join(lines))
+    return "\n\n---\n\n".join(blocks)
 
 
 def render_practice_page(source_path: Path) -> str:
@@ -478,7 +518,9 @@ def sync_practice(chapter: ChapterConfig, practice_sources: tuple[Path, ...], ch
         return []
 
     practice_root = chapter.target_dir / "practice"
+    previous: dict[Path, str] = {}
     if practice_root.exists():
+        previous = {path: path.read_text(encoding="utf-8") for path in practice_root.glob("*.md")}
         shutil.rmtree(practice_root)
     practice_root.mkdir(parents=True, exist_ok=True)
 
@@ -486,19 +528,20 @@ def sync_practice(chapter: ChapterConfig, practice_sources: tuple[Path, ...], ch
     for source_path in practice_sources:
         target_path = practice_target_path(chapter, source_path)
         content = render_practice_page(source_path)
+        if content != previous.get(target_path):
+            changed.append(target_path)
         write_text_if_changed(target_path, content)
-        changed.append(target_path)
         synced.append((extract_practice_title(source_path), target_path))
 
     index_path = practice_root / "README.md"
     index_content = render_practice_index(chapter, synced)
+    if index_content != previous.get(index_path):
+        changed.append(index_path)
     write_text_if_changed(index_path, index_content)
-    changed.append(index_path)
     return synced
 
 
-def build_summary(chapter_entries: list[tuple[ChapterConfig, Path | None, list[tuple[str, Path]], list[tuple[str, Path]]]]) -> str:
-    appendix_section = read_appendix_section()
+def build_summary(chapter_entries: list[tuple[ChapterConfig, Path | None, list[tuple[str, Path]], list[tuple[str, Path]]]], appendix_section: str) -> str:
     lines = [
         "# 인공지능 기초 (Fundamentals of Artificial Intelligence)",
         "",
@@ -543,9 +586,9 @@ def sync_book_sources(verbose: bool = False) -> list[Path]:
         readme_target = chapter_readmes.get(chapter.source_dir)
         chapter_entries.append((chapter, readme_target, theory_entries, practice_entries))
 
-    sync_appendix(link_map, changed)
+    appendix_entries = sync_appendix(link_map, changed)
 
-    summary_content = build_summary(chapter_entries)
+    summary_content = build_summary(chapter_entries, render_appendix_summary(appendix_entries))
     if write_text_if_changed(SUMMARY_PATH, summary_content):
         changed.append(SUMMARY_PATH)
 
