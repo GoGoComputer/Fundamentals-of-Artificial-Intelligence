@@ -14,6 +14,7 @@
 
 - [이 장 안내](./01-python-basics/README.md)
 - [1.1 첫 만남: print와 변수](./01-python-basics/01-hello.md)
+- [1.1a (보강) 파이썬 심화 — 사이사이 채우기](./01-python-basics/01a-python-advanced.md)
 - [1.2 자료형: 숫자, 문자, 참/거짓](./01-python-basics/02-data-types.md)
 - [1.3 연산자: 더하기부터 비교까지](./01-python-basics/03-operators.md)
 - [1.4 자료구조: 데이터를 담는 그릇 4종](./01-python-basics/04-data-structure.md)
@@ -108,6 +109,18 @@
 - [실습: 6장 3절 실습: API 테스트](./06-production/practice/03_API_테스트.md)
 - [실습: Docker 이미지 빌드 파일 (Dockerfile)](./06-production/practice/Dockerfile.md)
 - [실습: 실습 의존성 목록 (requirements.txt)](./06-production/practice/requirements_txt.md)
+
+# 7장. 더 넓은 AI 세계
+
+- [이 장 안내](./07-wider-ai/README.md)
+- [7.1 비지도학습 — 정답 없는 데이터에서 배우기](./07-wider-ai/01-unsupervised-learning.md)
+- [7.2 CNN 입문 — 이미지를 보는 신경망](./07-wider-ai/02-cnn-intro.md)
+- [7.3 RNN · LSTM · GRU — 시간을 기억하는 신경망](./07-wider-ai/03-rnn-lstm-gru.md)
+- [7.4 Transformer · Attention — 모든 LLM의 뿌리](./07-wider-ai/04-transformer-attention.md)
+- [7.5 EDA · 특성 공학 — 모델 전에 데이터를 알기](./07-wider-ai/05-eda-feature-engineering.md)
+- [7.6 모델 해석 — "왜 그렇게 예측했는가"](./07-wider-ai/06-model-interpretation.md)
+- [7.7 강화학습 — 시행착오로 배우는 AI](./07-wider-ai/07-reinforcement-learning.md)
+- [7.8 AI 윤리와 공정성 — 모델이 옳게 작동한다는 것](./07-wider-ai/08-ai-ethics-fairness.md)
 
 # 부록
 

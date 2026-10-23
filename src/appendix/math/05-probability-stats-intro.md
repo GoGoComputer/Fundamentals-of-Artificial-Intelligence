@@ -73,7 +73,7 @@ print(np.std(data))     # 2.83  표준편차
 
 #### 1. StandardScaler (정규화)
 
-[3장 정규화](../../03-머신러닝-회귀/이론/05-정규화.md)에서 봤죠.
+[3장 정규화](../../03-ml-regression/05-regularization.md)에서 봤죠.
 
 ```
 정규화된 값 = (원래 값 - 평균) / 표준편차
@@ -83,7 +83,7 @@ print(np.std(data))     # 2.83  표준편차
 
 #### 2. Batch Normalization
 
-[4장](../../04-딥러닝-분류/이론/05a-Batch-Normalization-깊게.md). 신경망 안에서 같은 일을 함.
+[4장](../../04-dl-classification/05a-batch-norm.md). 신경망 안에서 같은 일을 함.
 
 #### 3. 평가 지표
 
@@ -495,4 +495,4 @@ P(y|x) = P(x|y) × P(y) / P(x)   (베이즈)
 
 </details>
 
-➡️ 다음: [6. ML에 적용하기](06-ML에-적용하기.md)
+➡️ 다음: [6. ML에 적용하기](06-ml-application.md)

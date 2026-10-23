@@ -16,7 +16,7 @@
 
 이 글은 **두 번째 (Regularization)** 입니다. 과적합 방지 기법들이에요.
 
-(첫 번째 Normalization은 [3장 정규화](../03-머신러닝-회귀/이론/05-정규화.md)에서 다룸)
+(첫 번째 Normalization은 [3장 정규화](../03-ml-regression/05-regularization.md)에서 다룸)
 
 ---
 
@@ -464,4 +464,4 @@ for epoch in range(n_epochs):
 
 이 한 패턴이 90%의 신경망 학습의 표준이에요.
 
-➡️ [메인으로](../README.md)
+➡️ [메인으로](../intro.md)

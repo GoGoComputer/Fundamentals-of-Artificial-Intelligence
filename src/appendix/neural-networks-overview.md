@@ -412,5 +412,5 @@ classifier = pipeline('sentiment-analysis')
 
 이 자료의 MLP를 잘 익히셨으면 다른 신경망도 같은 패턴으로 만드실 수 있어요. 가장 어려운 건 **첫 번째 신경망을 직접 학습시켜 본 경험** 자체예요.
 
-➡️ [더 나아가기](더-나아가기.md)
-➡️ [메인으로](../README.md)
+➡️ [더 나아가기](further-reading.md)
+➡️ [메인으로](../intro.md)
